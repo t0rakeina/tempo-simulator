@@ -52,13 +52,13 @@
       <section class="panel editor-panel">
         <h2>Score Input</h2>
 
-        <textarea id="scoreInput" spellcheck="false"># Sample score
-MOVE 90 1200
-HOLD 300
-MOVE -45 800
-HOLD 300
-MOVE 180 1500
-</textarea>
+        <textarea id="scoreInput" spellcheck="false">// sample
+const ScoreRow SCORE[] PROGMEM = {
+  {  +72,  80, 1000 },
+  {  +40,  65,    0 },
+  {  -40,  65,   45 },
+  {    0,   0,  500 },
+};</textarea>
 
         <div class="button-row">
           <button id="sampleBtn">Load Sample</button>
@@ -78,13 +78,26 @@ MOVE 180 1500
 
         <div class="format-box">
           <h3>Format</h3>
-          <pre>MOVE angle duration_ms
-HOLD duration_ms
+          <pre>// ScoreRow format
+// { moveDeg10, moveMs, holdMs }
 
-# example
-MOVE 90 1200
-HOLD 300
-MOVE -45 800</pre>
+// moveDeg10:
+//   0.1度単位の相対移動量
+//   例: +72 = +7.2° / -80 = -8.0°
+//
+// moveMs:
+//   移動にかける時間（ms）
+//
+// holdMs:
+//   移動後に停止する時間（ms）
+
+{  +72,  80, 1000 },
+{  +40,  65,    0 },
+{  -40,  65,   45 },
+{    0,   0,  500 },
+
+// score.h 全文を貼り付けてもOKです。
+// シミュレーターは { number, number, number } の行だけを読み取ります。</pre>
         </div>
       </section>
     </main>
