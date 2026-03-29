@@ -6,6 +6,7 @@ const statusTextEl = document.getElementById("statusText");
 const scoreInputEl = document.getElementById("scoreInput");
 const messageBoxEl = document.getElementById("messageBox");
 const manualAngleEl = document.getElementById("manualAngle");
+const lineNumbersEl = document.getElementById("lineNumbers");
 
 const applyManualAngleBtn = document.getElementById("applyManualAngleBtn");
 const setStartBtn = document.getElementById("setStartBtn");
@@ -76,9 +77,6 @@ function parseScore(text) {
   const lines = text.split("\n");
   const commands = [];
 
-  // ScoreRow 1行の想定:
-  // {  +72,  80, 1000 },
-  // 末尾カンマはあってもなくてもOK
   const rowPattern =
     /^\s*\{\s*([+-]?\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\}\s*,?\s*$/;
 
@@ -94,8 +92,6 @@ function parseScore(text) {
     const match = line.match(rowPattern);
 
     if (!match) {
-      // score.h 全文を貼れるように、
-      // ScoreRowの実データ行以外は基本的に無視する
       continue;
     }
 
@@ -228,6 +224,19 @@ function resetToStartAngle() {
   setMessage("Reset to start angle.");
 }
 
+function updateLineNumbers() {
+  const text = scoreInputEl.value;
+  const lineCount = text.split("\n").length;
+  const numbers = [];
+
+  for (let i = 1; i <= lineCount; i++) {
+    numbers.push(String(i));
+  }
+
+  lineNumbersEl.textContent = numbers.join("\n");
+  lineNumbersEl.scrollTop = scoreInputEl.scrollTop;
+}
+
 applyManualAngleBtn.addEventListener("click", () => {
   const angle = Number(manualAngleEl.value);
 
@@ -249,13 +258,13 @@ setStartBtn.addEventListener("click", () => {
 });
 
 sampleBtn.addEventListener("click", () => {
-  scoreInputEl.value = `// sample
-const ScoreRow SCORE[] PROGMEM = {
-  {  +72,  80, 1000 },
-  {  +40,  65,    0 },
-  {  -40,  65,   45 },
-  {    0,   0,  500 },
-};`;
+  scoreInputEl.value = `{ +1200, 480, 500 },
+{  +200, 180,   0 },
+{  -200, 180, 120 },
+{ +1800, 600, 400 },
+{  -300, 220, 150 },
+{ -2700, 900, 600 }`;
+  updateLineNumbers();
   setMessage("Sample loaded.");
 });
 
@@ -296,7 +305,13 @@ resetBtn.addEventListener("click", () => {
 
 clearBtn.addEventListener("click", () => {
   scoreInputEl.value = "";
+  updateLineNumbers();
   setMessage("Score cleared.");
+});
+
+scoreInputEl.addEventListener("input", updateLineNumbers);
+scoreInputEl.addEventListener("scroll", () => {
+  lineNumbersEl.scrollTop = scoreInputEl.scrollTop;
 });
 
 function initialize() {
@@ -305,6 +320,7 @@ function initialize() {
   updateStepInfo();
   setStatus("Idle");
   setMessage("Ready.");
+  updateLineNumbers();
 }
 
 initialize();
