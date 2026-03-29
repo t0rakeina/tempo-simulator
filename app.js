@@ -7,6 +7,7 @@ const scoreInputEl = document.getElementById("scoreInput");
 const messageBoxEl = document.getElementById("messageBox");
 const manualAngleEl = document.getElementById("manualAngle");
 const lineNumbersEl = document.getElementById("lineNumbers");
+const activeLineHighlightEl = document.getElementById("activeLineHighlight");
 
 const applyManualAngleBtn = document.getElementById("applyManualAngleBtn");
 const setStartBtn = document.getElementById("setStartBtn");
@@ -168,6 +169,32 @@ function animateMove(deltaAngle, duration) {
   });
 }
 
+function updateLineNumbers() {
+  const text = scoreInputEl.value;
+  const lineCount = Math.max(1, text.split("\n").length);
+  const numbers = [];
+
+  for (let i = 1; i <= lineCount; i++) {
+    numbers.push(String(i));
+  }
+
+  lineNumbersEl.textContent = numbers.join("\n");
+  lineNumbersEl.scrollTop = scoreInputEl.scrollTop;
+}
+
+function hideActiveLineHighlight() {
+  activeLineHighlightEl.classList.add("hidden");
+}
+
+function showActiveLineHighlight(lineNumber) {
+  const lineHeight = 21; // CSSの --editor-line-height と合わせる
+  const topPadding = 16; // textarea padding-top と合わせる
+  const top = topPadding + (lineNumber - 1) * lineHeight - scoreInputEl.scrollTop;
+
+  activeLineHighlightEl.style.top = `${top}px`;
+  activeLineHighlightEl.classList.remove("hidden");
+}
+
 async function runCommands() {
   stopRequested = false;
   isPlaying = true;
@@ -182,6 +209,7 @@ async function runCommands() {
     updateStepInfo();
 
     const cmd = parsedCommands[i];
+    showActiveLineHighlight(cmd.lineNumber);
 
     setMessage(
       `Line ${cmd.lineNumber}: moveDeg10=${cmd.moveDeg10}, moveMs=${cmd.moveMs}, holdMs=${cmd.holdMs}`
@@ -211,6 +239,8 @@ async function runCommands() {
     setStatus("Stopped");
     setMessage("Playback stopped.");
   }
+
+  hideActiveLineHighlight();
 }
 
 function resetToStartAngle() {
@@ -222,19 +252,7 @@ function resetToStartAngle() {
   updateStepInfo();
   setStatus("Idle");
   setMessage("Reset to start angle.");
-}
-
-function updateLineNumbers() {
-  const text = scoreInputEl.value;
-  const lineCount = text.split("\n").length;
-  const numbers = [];
-
-  for (let i = 1; i <= lineCount; i++) {
-    numbers.push(String(i));
-  }
-
-  lineNumbersEl.textContent = numbers.join("\n");
-  lineNumbersEl.scrollTop = scoreInputEl.scrollTop;
+  hideActiveLineHighlight();
 }
 
 applyManualAngleBtn.addEventListener("click", () => {
@@ -283,6 +301,7 @@ playBtn.addEventListener("click", async () => {
   } catch (error) {
     setStatus("Error");
     setMessage(error.message);
+    hideActiveLineHighlight();
   }
 });
 
@@ -297,6 +316,7 @@ stopBtn.addEventListener("click", () => {
   isPlaying = false;
   setStatus("Stopped");
   setMessage("Stop requested.");
+  hideActiveLineHighlight();
 });
 
 resetBtn.addEventListener("click", () => {
@@ -307,11 +327,26 @@ clearBtn.addEventListener("click", () => {
   scoreInputEl.value = "";
   updateLineNumbers();
   setMessage("Score cleared.");
+  hideActiveLineHighlight();
 });
 
-scoreInputEl.addEventListener("input", updateLineNumbers);
+scoreInputEl.addEventListener("input", () => {
+  updateLineNumbers();
+  hideActiveLineHighlight();
+  currentStepIndex = -1;
+  updateStepInfo();
+});
+
 scoreInputEl.addEventListener("scroll", () => {
   lineNumbersEl.scrollTop = scoreInputEl.scrollTop;
+
+  if (
+    currentStepIndex >= 0 &&
+    parsedCommands[currentStepIndex] &&
+    !activeLineHighlightEl.classList.contains("hidden")
+  ) {
+    showActiveLineHighlight(parsedCommands[currentStepIndex].lineNumber);
+  }
 });
 
 function initialize() {
@@ -321,6 +356,7 @@ function initialize() {
   setStatus("Idle");
   setMessage("Ready.");
   updateLineNumbers();
+  hideActiveLineHighlight();
 }
 
 initialize();
