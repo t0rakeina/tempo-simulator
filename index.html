@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TEMPO Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>TEMPO Simulator</h1>
+      <p class="subtitle">Minimal prototype for TEMPO score preview</p>
+    </header>
+
+    <main class="main">
+      <section class="panel simulator-panel">
+        <h2>Simulator</h2>
+
+        <div class="dial-wrap">
+          <div class="dial">
+            <div class="dial-center"></div>
+            <div class="needle" id="needle"></div>
+            <div class="label label-top">0°</div>
+            <div class="label label-right">90°</div>
+            <div class="label label-bottom">180°</div>
+            <div class="label label-left">270°</div>
+          </div>
+        </div>
+
+        <div class="status-grid">
+          <div><span class="status-label">Current Angle</span><span id="currentAngle">0°</span></div>
+          <div><span class="status-label">Start Angle</span><span id="startAngle">0°</span></div>
+          <div><span class="status-label">Step</span><span id="stepInfo">-</span></div>
+          <div><span class="status-label">Status</span><span id="statusText">Idle</span></div>
+        </div>
+
+        <div class="start-controls">
+          <label for="manualAngle">Manual Angle</label>
+          <div class="inline-controls">
+            <input type="number" id="manualAngle" value="0" step="1" />
+            <button id="applyManualAngleBtn">Apply Angle</button>
+            <button id="setStartBtn">Set as Start</button>
+          </div>
+          <p class="help-text">
+            手で初期位置を合わせるイメージで、現在角度を調整し、
+            「Set as Start」で初期位置として保存します。
+          </p>
+        </div>
+      </section>
+
+      <section class="panel editor-panel">
+        <h2>Score Input</h2>
+
+        <textarea id="scoreInput" spellcheck="false"># Sample score
+MOVE 90 1200
+HOLD 300
+MOVE -45 800
+HOLD 300
+MOVE 180 1500
+</textarea>
+
+        <div class="button-row">
+          <button id="sampleBtn">Load Sample</button>
+          <button id="playBtn">Play</button>
+          <button id="stopBtn">Stop</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+
+        <div class="button-row">
+          <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+
+        <div class="error-box">
+          <div class="error-title">Message</div>
+          <pre id="messageBox">Ready.</pre>
+        </div>
+
+        <div class="format-box">
+          <h3>Format</h3>
+          <pre>MOVE angle duration_ms
+HOLD duration_ms
+
+# example
+MOVE 90 1200
+HOLD 300
+MOVE -45 800</pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
