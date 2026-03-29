@@ -164,6 +164,32 @@ input[type="number"] {
   min-width: 120px;
 }
 
+.editor-wrap {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 0;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  background: #fff;
+}
+
+.line-numbers {
+  min-height: 320px;
+  padding: 16px 10px 16px 12px;
+  background: #f3f3f3;
+  color: #aaa;
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow: hidden;
+  user-select: none;
+  border-right: 1px solid #ddd;
+}
+
 textarea {
   width: 100%;
   min-height: 320px;
@@ -172,9 +198,10 @@ textarea {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 14px;
   line-height: 1.5;
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  margin-bottom: 16px;
+  border: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  outline: none;
 }
 
 button {
