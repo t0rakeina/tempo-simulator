@@ -52,13 +52,15 @@
       <section class="panel editor-panel">
         <h2>Score Input</h2>
 
-        <textarea id="scoreInput" spellcheck="false">// sample
-const ScoreRow SCORE[] PROGMEM = {
-  {  +72,  80, 1000 },
-  {  +40,  65,    0 },
-  {  -40,  65,   45 },
-  {    0,   0,  500 },
-};</textarea>
+        <div class="editor-wrap">
+          <div class="line-numbers" id="lineNumbers">1</div>
+          <textarea id="scoreInput" spellcheck="false">{ +1200, 480, 500 },
+{  +200, 180,   0 },
+{  -200, 180, 120 },
+{ +1800, 600, 400 },
+{  -300, 220, 150 },
+{ -2700, 900, 600 }</textarea>
+        </div>
 
         <div class="button-row">
           <button id="sampleBtn">Load Sample</button>
@@ -78,26 +80,12 @@ const ScoreRow SCORE[] PROGMEM = {
 
         <div class="format-box">
           <h3>Format</h3>
-          <pre>// ScoreRow format
-// { moveDeg10, moveMs, holdMs }
+          <pre>{ moveDeg10, moveMs, holdMs }
 
-// moveDeg10:
-//   0.1度単位の相対移動量
-//   例: +72 = +7.2° / -80 = -8.0°
-//
-// moveMs:
-//   移動にかける時間（ms）
-//
-// holdMs:
-//   移動後に停止する時間（ms）
-
-{  +72,  80, 1000 },
-{  +40,  65,    0 },
-{  -40,  65,   45 },
-{    0,   0,  500 },
-
-// score.h 全文を貼り付けてもOKです。
-// シミュレーターは { number, number, number } の行だけを読み取ります。</pre>
+- moveDeg10：0.1度単位の相対移動量
+  - 例: +72 = +7.2° / -80 = -8.0°
+- moveMs：移動にかける時間（ms）
+- holdMs：移動後に停止する時間（ms）</pre>
         </div>
       </section>
     </main>
