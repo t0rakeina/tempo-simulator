@@ -31,6 +31,10 @@ function setStatus(text) {
   statusTextEl.textContent = text;
 }
 
+function roundToOne(num) {
+  return Math.round(num * 10) / 10;
+}
+
 function updateNeedle(angle) {
   currentAngle = angle;
   needleEl.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
@@ -49,72 +53,8 @@ function updateStepInfo() {
   stepInfoEl.textContent = `${currentStepIndex + 1} / ${parsedCommands.length}`;
 }
 
-function roundToOne(num) {
-  return Math.round(num * 10) / 10;
-}
-
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function parseScore(text) {
-  const lines = text.split("\n");
-  const commands = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i];
-    const line = rawLine.trim();
-
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
-
-    const parts = line.split(/\s+/);
-    const command = parts[0].toUpperCase();
-
-    if (command === "MOVE") {
-      if (parts.length !== 3) {
-        throw new Error(`Line ${i + 1}: MOVE requires angle and duration.`);
-      }
-
-      const angle = Number(parts[1]);
-      const duration = Number(parts[2]);
-
-      if (Number.isNaN(angle)) {
-        throw new Error(`Line ${i + 1}: angle must be a number.`);
-      }
-      if (Number.isNaN(duration) || duration < 0) {
-        throw new Error(`Line ${i + 1}: duration must be a non-negative number.`);
-      }
-
-      commands.push({
-        type: "MOVE",
-        angle,
-        duration,
-        lineNumber: i + 1,
-      });
-    } else if (command === "HOLD") {
-      if (parts.length !== 2) {
-        throw new Error(`Line ${i + 1}: HOLD requires duration.`);
-      }
-
-      const duration = Number(parts[1]);
-
-      if (Number.isNaN(duration) || duration < 0) {
-        throw new Error(`Line ${i + 1}: duration must be a non-negative number.`);
-      }
-
-      commands.push({
-        type: "HOLD",
-        duration,
-        lineNumber: i + 1,
-      });
-    } else {
-      throw new Error(`Line ${i + 1}: Unknown command "${parts[0]}".`);
-    }
-  }
-
-  return commands;
 }
 
 function cancelAnimationIfNeeded() {
@@ -122,6 +62,77 @@ function cancelAnimationIfNeeded() {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
   }
+}
+
+function stripLineComment(line) {
+  const commentIndex = line.indexOf("//");
+  if (commentIndex >= 0) {
+    return line.slice(0, commentIndex);
+  }
+  return line;
+}
+
+function parseScore(text) {
+  const lines = text.split("\n");
+  const commands = [];
+
+  // ScoreRow 1行の想定:
+  // {  +72,  80, 1000 },
+  // 末尾カンマはあってもなくてもOK
+  const rowPattern =
+    /^\s*\{\s*([+-]?\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\}\s*,?\s*$/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const originalLine = lines[i];
+    const withoutComment = stripLineComment(originalLine);
+    const line = withoutComment.trim();
+
+    if (!line) {
+      continue;
+    }
+
+    const match = line.match(rowPattern);
+
+    if (!match) {
+      // score.h 全文を貼れるように、
+      // ScoreRowの実データ行以外は基本的に無視する
+      continue;
+    }
+
+    const moveDeg10 = Number(match[1]);
+    const moveMs = Number(match[2]);
+    const holdMs = Number(match[3]);
+
+    if (
+      Number.isNaN(moveDeg10) ||
+      Number.isNaN(moveMs) ||
+      Number.isNaN(holdMs)
+    ) {
+      throw new Error(`Line ${i + 1}: invalid numeric values.`);
+    }
+
+    if (moveMs < 0 || holdMs < 0) {
+      throw new Error(`Line ${i + 1}: moveMs and holdMs must be >= 0.`);
+    }
+
+    commands.push({
+      type: "ROW",
+      moveDeg10,
+      moveDeg: moveDeg10 / 10,
+      moveMs,
+      holdMs,
+      lineNumber: i + 1,
+      raw: line,
+    });
+  }
+
+  if (commands.length === 0) {
+    throw new Error(
+      "No ScoreRow lines found. Expected lines like: { +72, 80, 1000 },"
+    );
+  }
+
+  return commands;
 }
 
 function animateMove(deltaAngle, duration) {
@@ -176,12 +187,20 @@ async function runCommands() {
 
     const cmd = parsedCommands[i];
 
-    if (cmd.type === "MOVE") {
-      setMessage(`Line ${cmd.lineNumber}: MOVE ${cmd.angle} ${cmd.duration}`);
-      await animateMove(cmd.angle, cmd.duration);
-    } else if (cmd.type === "HOLD") {
-      setMessage(`Line ${cmd.lineNumber}: HOLD ${cmd.duration}`);
-      await sleep(cmd.duration);
+    setMessage(
+      `Line ${cmd.lineNumber}: moveDeg10=${cmd.moveDeg10}, moveMs=${cmd.moveMs}, holdMs=${cmd.holdMs}`
+    );
+
+    if (cmd.moveDeg !== 0 || cmd.moveMs === 0) {
+      await animateMove(cmd.moveDeg, cmd.moveMs);
+    }
+
+    if (stopRequested) {
+      break;
+    }
+
+    if (cmd.holdMs > 0) {
+      await sleep(cmd.holdMs);
     }
   }
 
@@ -230,12 +249,13 @@ setStartBtn.addEventListener("click", () => {
 });
 
 sampleBtn.addEventListener("click", () => {
-  scoreInputEl.value = `# Sample score
-MOVE 90 1200
-HOLD 300
-MOVE -45 800
-HOLD 300
-MOVE 180 1500`;
+  scoreInputEl.value = `// sample
+const ScoreRow SCORE[] PROGMEM = {
+  {  +72,  80, 1000 },
+  {  +40,  65,    0 },
+  {  -40,  65,   45 },
+  {    0,   0,  500 },
+};`;
   setMessage("Sample loaded.");
 });
 
@@ -247,16 +267,9 @@ playBtn.addEventListener("click", async () => {
 
   try {
     parsedCommands = parseScore(scoreInputEl.value);
-
-    if (parsedCommands.length === 0) {
-      setMessage("No commands found.");
-      return;
-    }
-
     currentStepIndex = -1;
     updateStepInfo();
     setMessage("Parsed successfully.");
-
     await runCommands();
   } catch (error) {
     setStatus("Error");
