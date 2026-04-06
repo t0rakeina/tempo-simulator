@@ -10,7 +10,7 @@
   <div class="app">
     <header class="header">
       <h1>TEMPO Simulator</h1>
-      <p class="subtitle">Minimal prototype for TEMPO score preview</p>
+      <p class="subtitle">実機相当（1.8°刻み）でプレビューする版</p>
     </header>
 
     <main class="main">
@@ -29,21 +29,26 @@
         </div>
 
         <div class="status-grid">
-          <div><span class="status-label">Current Angle</span><span id="currentAngle">0°</span></div>
-          <div><span class="status-label">Start Angle</span><span id="startAngle">0°</span></div>
+          <div><span class="status-label">Current Angle</span><span id="currentAngle">0.0°</span></div>
+          <div><span class="status-label">Start Angle</span><span id="startAngle">0.0°</span></div>
           <div><span class="status-label">Step</span><span id="stepInfo">-</span></div>
           <div><span class="status-label">Status</span><span id="statusText">Idle</span></div>
         </div>
 
+        <div class="mode-box">
+          <strong>Preview Mode</strong>
+          <p>実機相当のみ（A4988 フルステップ / 1.8°刻み丸め）</p>
+        </div>
+
         <div class="start-controls">
-          <label for="manualAngle">Manual Angle</label>
+          <label for="manualAngle">Manual Angle（度）</label>
           <div class="inline-controls">
-            <input type="number" id="manualAngle" value="0" step="1" />
+            <input type="number" id="manualAngle" value="0" step="0.1" />
             <button id="applyManualAngleBtn">Apply Angle</button>
             <button id="setStartBtn">Set as Start</button>
           </div>
           <p class="help-text">
-            手で初期位置を合わせるイメージで、現在角度を調整し、
+            手で初期位置を合わせるイメージで現在角度を調整し、
             「Set as Start」で初期位置として保存します。
           </p>
         </div>
@@ -55,33 +60,38 @@
         <div class="format-box format-box-top">
           <h3>Format</h3>
           <pre>{ moveDeg10, moveMs, holdMs }
-            
-・ moveDeg10：0.1度単位の相対移動量（例: 1°動かす = +10）
+
+・ moveDeg10：0.1度単位の相対移動量
+  例）+300 = +30.0° / -50 = -5.0°
 ・ moveMs：移動にかける時間（ms）
-・ holdMs：移動後に停止する時間（ms）</pre>
+・ holdMs：移動後に停止する時間（ms）
+
+※ このシミュレーターは、入力値を実機相当の 1.8°刻みに丸めて再生します。</pre>
         </div>
 
         <div class="editor-wrap">
           <pre class="line-numbers" id="lineNumbers">1</pre>
           <div class="editor-pane">
             <div class="active-line-highlight hidden" id="activeLineHighlight"></div>
-            <textarea id="scoreInput" spellcheck="false">{ +3600, 1000, 3000 },
-{  +200, 180,   0 },
-{  -200, 180, 120 },
-{ -1800, 1000, 2000 },
-{  -300, 220, 150 },
-{ -1500, 900, 600 }</textarea>
+            <textarea id="scoreInput" spellcheck="false">{ 150, 150, 0 },
+{ -300, 150, 0 },
+{ 300, 150, 0 },
+{ -300, 150, 0 },
+{ 300, 150, 0 },
+{ -300, 150, 0 },
+{ 300, 150, 0 },
+{ -300, 150, 0 },
+{ 150, 150, 0 },
+{ 0, 0, 850 },
+{ 300, 50, 200 }</textarea>
           </div>
         </div>
 
-        <div class="button-row">
+        <div class="button-row sticky-buttons">
           <button id="sampleBtn">Load Sample</button>
           <button id="playBtn">Play</button>
           <button id="stopBtn">Stop</button>
           <button id="resetBtn">Reset</button>
-        </div>
-
-        <div class="button-row">
           <button id="clearBtn" class="secondary">Clear</button>
         </div>
 
