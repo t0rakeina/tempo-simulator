@@ -48,8 +48,7 @@ function normalizeAngle(angle) {
   return a;
 }
 
-function deg10ToSteps(deg10) {
-  const deg = deg10 / 10;
+function degToSteps(deg) {
   const stepsF = deg / DEG_PER_STEP;
   return stepsF >= 0 ? Math.round(stepsF) : -Math.round(Math.abs(stepsF));
 }
@@ -100,7 +99,7 @@ function parseScore(text) {
   const commands = [];
 
   const rowPattern =
-    /^\s*\{\s*([+-]?\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\}\s*,?\s*$/;
+    /^\s*\{\s*([+-]?\d+(?:\.\d+)?)\s*,\s*(\d+)\s*,\s*(\d+)\s*\}\s*,?\s*$/;
 
   for (let i = 0; i < lines.length; i++) {
     const originalLine = lines[i];
@@ -112,12 +111,12 @@ function parseScore(text) {
     const match = line.match(rowPattern);
     if (!match) continue;
 
-    const moveDeg10 = Number(match[1]);
+    const moveDeg = Number(match[1]);
     const moveMs = Number(match[2]);
     const holdMs = Number(match[3]);
 
     if (
-      Number.isNaN(moveDeg10) ||
+      Number.isNaN(moveDeg) ||
       Number.isNaN(moveMs) ||
       Number.isNaN(holdMs)
     ) {
@@ -129,8 +128,7 @@ function parseScore(text) {
     }
 
     commands.push({
-      moveDeg10,
-      moveDeg: moveDeg10 / 10,
+      moveDeg,
       moveMs,
       holdMs,
       lineNumber: i + 1,
@@ -140,7 +138,7 @@ function parseScore(text) {
 
   if (commands.length === 0) {
     throw new Error(
-      "No ScoreRow lines found. Expected lines like: { +300, 150, 0 },"
+      "No ScoreRow lines found. Expected lines like: { 30, 150, 0 },"
     );
   }
 
@@ -216,7 +214,7 @@ async function runCommands() {
   setStatus("Playing");
 
   // 実機相当：累積角度 → ステップ丸め → 実角度
-  let currentTargetDeg10 = 0;
+  let currentTargetDeg = 0;
   let currentStep = 0;
 
   for (let i = 0; i < parsedCommands.length; i++) {
@@ -228,16 +226,16 @@ async function runCommands() {
     const cmd = parsedCommands[i];
     showActiveLineHighlight(cmd.lineNumber);
 
-    currentTargetDeg10 += cmd.moveDeg10;
+    currentTargetDeg += cmd.moveDeg;
 
-    const targetStep = deg10ToSteps(currentTargetDeg10);
+    const targetStep = degToSteps(currentTargetDeg);
     const deltaStep = targetStep - currentStep;
     const actualTargetAngle = startAngle + stepsToDeg(targetStep);
 
     setMessage(
       [
         `Line ${cmd.lineNumber}`,
-        `input: moveDeg10=${cmd.moveDeg10} (${roundToOne(cmd.moveDeg)}°), moveMs=${cmd.moveMs}, holdMs=${cmd.holdMs}`,
+        `input: moveDeg=${cmd.moveDeg}°, moveMs=${cmd.moveMs}, holdMs=${cmd.holdMs}`,
         `rounded: targetStep=${targetStep}, deltaStep=${deltaStep}, actualTarget=${roundToOne(normalizeAngle(actualTargetAngle))}°`
       ].join("\n")
     );
@@ -300,17 +298,17 @@ setStartBtn.addEventListener("click", () => {
 });
 
 sampleBtn.addEventListener("click", () => {
-  scoreInputEl.value = `{ 150, 150, 0 },
-{ -300, 150, 0 },
-{ 300, 150, 0 },
-{ -300, 150, 0 },
-{ 300, 150, 0 },
-{ -300, 150, 0 },
-{ 300, 150, 0 },
-{ -300, 150, 0 },
-{ 150, 150, 0 },
+  scoreInputEl.value = `{ 15, 150, 0 },
+{ -30, 150, 0 },
+{ 30, 150, 0 },
+{ -30, 150, 0 },
+{ 30, 150, 0 },
+{ -30, 150, 0 },
+{ 30, 150, 0 },
+{ -30, 150, 0 },
+{ 15, 150, 0 },
 { 0, 0, 850 },
-{ 300, 50, 200 }`;
+{ 30, 50, 200 }`;
   updateLineNumbers();
   setMessage("Sample loaded.");
   hideActiveLineHighlight();
