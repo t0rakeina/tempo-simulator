@@ -17,8 +17,13 @@ const stopBtn = document.getElementById("stopBtn");
 const resetBtn = document.getElementById("resetBtn");
 const clearBtn = document.getElementById("clearBtn");
 
+// 実機相当（フルステップ）
+const STEPS_PER_REV = 200;
+const DEG_PER_STEP = 360 / STEPS_PER_REV; // 1.8°
+
 let currentAngle = 0;
 let startAngle = 0;
+
 let parsedCommands = [];
 let currentStepIndex = -1;
 let isPlaying = false;
@@ -37,14 +42,30 @@ function roundToOne(num) {
   return Math.round(num * 10) / 10;
 }
 
+function normalizeAngle(angle) {
+  let a = angle % 360;
+  if (a < 0) a += 360;
+  return a;
+}
+
+function deg10ToSteps(deg10) {
+  const deg = deg10 / 10;
+  const stepsF = deg / DEG_PER_STEP;
+  return stepsF >= 0 ? Math.round(stepsF) : -Math.round(Math.abs(stepsF));
+}
+
+function stepsToDeg(steps) {
+  return steps * DEG_PER_STEP;
+}
+
 function updateNeedle(angle) {
   currentAngle = angle;
   needleEl.style.transform = `translate(-50%, -100%) rotate(${angle}deg)`;
-  currentAngleEl.textContent = `${roundToOne(angle)}°`;
+  currentAngleEl.textContent = `${roundToOne(normalizeAngle(angle))}°`;
 }
 
 function updateStartAngleDisplay() {
-  startAngleEl.textContent = `${roundToOne(startAngle)}°`;
+  startAngleEl.textContent = `${roundToOne(normalizeAngle(startAngle))}°`;
 }
 
 function updateStepInfo() {
@@ -86,15 +107,10 @@ function parseScore(text) {
     const withoutComment = stripLineComment(originalLine);
     const line = withoutComment.trim();
 
-    if (!line) {
-      continue;
-    }
+    if (!line) continue;
 
     const match = line.match(rowPattern);
-
-    if (!match) {
-      continue;
-    }
+    if (!match) continue;
 
     const moveDeg10 = Number(match[1]);
     const moveMs = Number(match[2]);
@@ -113,7 +129,6 @@ function parseScore(text) {
     }
 
     commands.push({
-      type: "ROW",
       moveDeg10,
       moveDeg: moveDeg10 / 10,
       moveMs,
@@ -125,17 +140,17 @@ function parseScore(text) {
 
   if (commands.length === 0) {
     throw new Error(
-      "No ScoreRow lines found. Expected lines like: { +72, 80, 1000 },"
+      "No ScoreRow lines found. Expected lines like: { +300, 150, 0 },"
     );
   }
 
   return commands;
 }
 
-function animateMove(deltaAngle, duration) {
+function animateMoveTo(targetAngle, duration) {
   return new Promise((resolve) => {
     const from = currentAngle;
-    const to = from + deltaAngle;
+    const to = targetAngle;
 
     if (duration === 0) {
       updateNeedle(to);
@@ -187,8 +202,8 @@ function hideActiveLineHighlight() {
 }
 
 function showActiveLineHighlight(lineNumber) {
-  const lineHeight = 21; // CSSの --editor-line-height と合わせる
-  const topPadding = 16; // textarea padding-top と合わせる
+  const lineHeight = 21;
+  const topPadding = 16;
   const top = topPadding + (lineNumber - 1) * lineHeight - scoreInputEl.scrollTop;
 
   activeLineHighlightEl.style.top = `${top}px`;
@@ -200,10 +215,12 @@ async function runCommands() {
   isPlaying = true;
   setStatus("Playing");
 
+  // 実機相当：累積角度 → ステップ丸め → 実角度
+  let currentTargetDeg10 = 0;
+  let currentStep = 0;
+
   for (let i = 0; i < parsedCommands.length; i++) {
-    if (stopRequested) {
-      break;
-    }
+    if (stopRequested) break;
 
     currentStepIndex = i;
     updateStepInfo();
@@ -211,17 +228,24 @@ async function runCommands() {
     const cmd = parsedCommands[i];
     showActiveLineHighlight(cmd.lineNumber);
 
+    currentTargetDeg10 += cmd.moveDeg10;
+
+    const targetStep = deg10ToSteps(currentTargetDeg10);
+    const deltaStep = targetStep - currentStep;
+    const actualTargetAngle = startAngle + stepsToDeg(targetStep);
+
     setMessage(
-      `Line ${cmd.lineNumber}: moveDeg10=${cmd.moveDeg10}, moveMs=${cmd.moveMs}, holdMs=${cmd.holdMs}`
+      [
+        `Line ${cmd.lineNumber}`,
+        `input: moveDeg10=${cmd.moveDeg10} (${roundToOne(cmd.moveDeg)}°), moveMs=${cmd.moveMs}, holdMs=${cmd.holdMs}`,
+        `rounded: targetStep=${targetStep}, deltaStep=${deltaStep}, actualTarget=${roundToOne(normalizeAngle(actualTargetAngle))}°`
+      ].join("\n")
     );
 
-    if (cmd.moveDeg !== 0 || cmd.moveMs === 0) {
-      await animateMove(cmd.moveDeg, cmd.moveMs);
-    }
+    await animateMoveTo(actualTargetAngle, cmd.moveMs);
+    currentStep = targetStep;
 
-    if (stopRequested) {
-      break;
-    }
+    if (stopRequested) break;
 
     if (cmd.holdMs > 0) {
       await sleep(cmd.holdMs);
@@ -265,25 +289,31 @@ applyManualAngleBtn.addEventListener("click", () => {
 
   updateNeedle(angle);
   setStatus("Manual Set");
-  setMessage(`Current angle set to ${angle}°`);
+  setMessage(`Current angle set to ${roundToOne(angle)}°`);
 });
 
 setStartBtn.addEventListener("click", () => {
   startAngle = currentAngle;
   updateStartAngleDisplay();
   setStatus("Start Set");
-  setMessage(`Start angle saved as ${roundToOne(startAngle)}°`);
+  setMessage(`Start angle saved as ${roundToOne(normalizeAngle(startAngle))}°`);
 });
 
 sampleBtn.addEventListener("click", () => {
-  scoreInputEl.value = `{ +1200, 480, 500 },
-{  +200, 180,   0 },
-{  -200, 180, 120 },
-{ +1800, 600, 400 },
-{  -300, 220, 150 },
-{ -2700, 900, 600 }`;
+  scoreInputEl.value = `{ 150, 150, 0 },
+{ -300, 150, 0 },
+{ 300, 150, 0 },
+{ -300, 150, 0 },
+{ 300, 150, 0 },
+{ -300, 150, 0 },
+{ 300, 150, 0 },
+{ -300, 150, 0 },
+{ 150, 150, 0 },
+{ 0, 0, 850 },
+{ 300, 50, 200 }`;
   updateLineNumbers();
   setMessage("Sample loaded.");
+  hideActiveLineHighlight();
 });
 
 playBtn.addEventListener("click", async () => {
