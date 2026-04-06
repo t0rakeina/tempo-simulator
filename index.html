@@ -62,6 +62,7 @@
           <pre>{ moveDeg, moveMs, holdMs }
 
 ・ moveDeg：度単位の相対移動量
+  例）+30 = +30° / -5 = -5°
 ・ moveMs：移動にかける時間（ms）
 ・ holdMs：移動後に停止する時間（ms）
 
@@ -92,6 +93,12 @@
           <button id="stopBtn">Stop</button>
           <button id="resetBtn">Reset</button>
           <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+
+        <div class="safety-box" id="safetyBox">
+          <div class="safety-title">Safety Check</div>
+          <div class="safety-level safety-neutral" id="safetyLevel">Not checked</div>
+          <pre class="safety-detail" id="safetyDetail">Play を押すと safety 判定を表示します。</pre>
         </div>
 
         <div class="error-box">
