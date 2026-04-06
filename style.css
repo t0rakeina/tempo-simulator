@@ -48,11 +48,6 @@ body {
   min-width: 0;
 }
 
-.simulator-panel {
-  position: sticky;
-  top: 20px;
-}
-
 .panel h2 {
   margin-top: 0;
   margin-bottom: 16px;
@@ -314,13 +309,6 @@ button:hover {
   margin-bottom: 0;
 }
 
-.sticky-buttons {
-  position: sticky;
-  bottom: 0;
-  background: #fff;
-  padding-top: 4px;
-}
-
 pre {
   margin: 0;
   white-space: pre-wrap;
@@ -341,10 +329,6 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  .simulator-panel {
-    position: static;
-  }
-
   .dial {
     width: 280px;
     height: 280px;
@@ -356,9 +340,5 @@ pre {
 
   .editor-wrap {
     height: 360px;
-  }
-
-  .sticky-buttons {
-    position: static;
   }
 }
