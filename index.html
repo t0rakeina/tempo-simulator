@@ -59,10 +59,10 @@
 
         <div class="format-box format-box-top">
           <h3>Format</h3>
-          <pre>{ moveDeg10, moveMs, holdMs }
+          <pre>{ moveDeg, moveMs, holdMs }
 
-・ moveDeg10：0.1度単位の相対移動量
-  例）+300 = +30.0° / -50 = -5.0°
+・ moveDeg：度単位の相対移動量
+  例）+30 = +30° / -5 = -5°
 ・ moveMs：移動にかける時間（ms）
 ・ holdMs：移動後に停止する時間（ms）
 
@@ -73,21 +73,21 @@
           <pre class="line-numbers" id="lineNumbers">1</pre>
           <div class="editor-pane">
             <div class="active-line-highlight hidden" id="activeLineHighlight"></div>
-            <textarea id="scoreInput" spellcheck="false">{ 150, 150, 0 },
-{ -300, 150, 0 },
-{ 300, 150, 0 },
-{ -300, 150, 0 },
-{ 300, 150, 0 },
-{ -300, 150, 0 },
-{ 300, 150, 0 },
-{ -300, 150, 0 },
-{ 150, 150, 0 },
+            <textarea id="scoreInput" spellcheck="false">{ 15, 150, 0 },
+{ -30, 150, 0 },
+{ 30, 150, 0 },
+{ -30, 150, 0 },
+{ 30, 150, 0 },
+{ -30, 150, 0 },
+{ 30, 150, 0 },
+{ -30, 150, 0 },
+{ 15, 150, 0 },
 { 0, 0, 850 },
-{ 300, 50, 200 }</textarea>
+{ 30, 50, 200 }</textarea>
           </div>
         </div>
 
-        <div class="button-row sticky-buttons">
+        <div class="button-row">
           <button id="sampleBtn">Load Sample</button>
           <button id="playBtn">Play</button>
           <button id="stopBtn">Stop</button>
