@@ -208,6 +208,183 @@ function showActiveLineHighlight(lineNumber) {
   activeLineHighlightEl.classList.remove("hidden");
 }
 
+// ------------------------------------------------------------
+// 安全ガード
+// ------------------------------------------------------------
+
+function signOfMove(moveDeg) {
+  if (moveDeg > 0) return 1;
+  if (moveDeg < 0) return -1;
+  return 0;
+}
+
+function analyzeSafety(commands) {
+  const cautions = [];
+  const warnings = [];
+
+  // 反転ブロック解析
+  let blockMoves = [];
+  let prevSign = 0;
+
+  function flushBlock() {
+    if (blockMoves.length < 2) {
+      blockMoves = [];
+      return;
+    }
+
+    const reversalCount = blockMoves.length - 1;
+    const maxAbsDeg = Math.max(...blockMoves.map((m) => Math.abs(m.moveDeg)));
+    const minMoveMs = Math.min(...blockMoves.map((m) => m.moveMs));
+    const zeroHoldCount = blockMoves.filter((m) => m.holdMs === 0).length;
+
+    // ルール1：小刻み反転
+    if (maxAbsDeg <= 30 && minMoveMs <= 120 && reversalCount >= 4) {
+      warnings.push(
+        `小〜中振れ幅（≤30°）の高速反転が ${reversalCount} 回連続しています`
+      );
+    } else if (maxAbsDeg <= 30 && minMoveMs <= 200 && reversalCount >= 3) {
+      cautions.push(
+        `小〜中振れ幅（≤30°）の反転が ${reversalCount} 回連続しています`
+      );
+    }
+
+    // ルール2：中振れ幅の高速反転
+    if (maxAbsDeg > 30 && maxAbsDeg <= 60 && minMoveMs <= 100 && reversalCount >= 3) {
+      warnings.push(
+        `中振れ幅（30〜60°）の高速反転が ${reversalCount} 回連続しています`
+      );
+    } else if (maxAbsDeg > 30 && maxAbsDeg <= 60 && minMoveMs <= 150 && reversalCount >= 2) {
+      cautions.push(
+        `中振れ幅（30〜60°）の反転が ${reversalCount} 回連続しています`
+      );
+    }
+
+    // ルール5：停止なし連続
+    if (zeroHoldCount >= 10 && reversalCount >= 4) {
+      warnings.push(`停止なし（holdMs=0）の反転が長く続いています`);
+    } else if (zeroHoldCount >= 6 && reversalCount >= 3) {
+      cautions.push(`停止なし（holdMs=0）の反転が続いています`);
+    }
+
+    blockMoves = [];
+  }
+
+  for (let i = 0; i < commands.length; i++) {
+    const cmd = commands[i];
+    const sign = signOfMove(cmd.moveDeg);
+
+    if (sign === 0) {
+      flushBlock();
+      prevSign = 0;
+      continue;
+    }
+
+    if (prevSign === 0) {
+      blockMoves = [cmd];
+      prevSign = sign;
+      continue;
+    }
+
+    if (sign !== prevSign) {
+      blockMoves.push(cmd);
+      prevSign = sign;
+    } else {
+      flushBlock();
+      blockMoves = [cmd];
+      prevSign = sign;
+    }
+  }
+  flushBlock();
+
+  // ルール3：大振れ幅の高速移動
+  commands.forEach((cmd) => {
+    const absDeg = Math.abs(cmd.moveDeg);
+
+    if (absDeg >= 120 && cmd.moveMs <= 100) {
+      warnings.push(`大振れ幅（≥120°）を短時間（≤100ms）で動かしています`);
+    } else if (absDeg >= 90 && cmd.moveMs <= 150) {
+      cautions.push(`大振れ幅（≥90°）を短時間（≤150ms）で動かしています`);
+    }
+  });
+
+  // ルール4：月送り直前の激しい往復
+  for (let i = 0; i < commands.length; i++) {
+    const cmd = commands[i];
+
+    // 月送りっぽい大きめの移動を仮に20°以上とみなす
+    if (Math.abs(cmd.moveDeg) < 20) continue;
+
+    const prevSlice = commands.slice(Math.max(0, i - 8), i);
+
+    let reversalCount = 0;
+    for (let j = 1; j < prevSlice.length; j++) {
+      const a = signOfMove(prevSlice[j - 1].moveDeg);
+      const b = signOfMove(prevSlice[j].moveDeg);
+      if (a !== 0 && b !== 0 && a !== b) reversalCount++;
+    }
+
+    const fastCount = prevSlice.filter((x) => x.moveMs <= 120).length;
+
+    if (reversalCount >= 4 && fastCount >= 4 && cmd.moveMs <= 100) {
+      warnings.push(`激しい往復の直後に速い月移動が入っています`);
+    } else if (reversalCount >= 3 && fastCount >= 3) {
+      cautions.push(`往復の直後に月移動が入っています`);
+    }
+  }
+
+  // 重複を整理
+  const uniqueCautions = [...new Set(cautions)];
+  const uniqueWarnings = [...new Set(warnings)];
+
+  let level = "Safe";
+  if (uniqueWarnings.length > 0) {
+    level = "Warning";
+  } else if (uniqueCautions.length > 0) {
+    level = "Caution";
+  }
+
+  return {
+    level,
+    cautions: uniqueCautions,
+    warnings: uniqueWarnings,
+  };
+}
+
+function formatSafetyReport(result) {
+  const lines = [];
+  lines.push(`Safety Check: ${result.level}`);
+
+  if (result.level === "Safe") {
+    lines.push("実機でも比較的安定して再生できる可能性が高いです。");
+    return lines.join("\n");
+  }
+
+  if (result.warnings.length > 0) {
+    lines.push("");
+    lines.push("[Warning]");
+    result.warnings.forEach((w) => lines.push(`- ${w}`));
+  }
+
+  if (result.cautions.length > 0) {
+    lines.push("");
+    lines.push("[Caution]");
+    result.cautions.forEach((c) => lines.push(`- ${c}`));
+  }
+
+  lines.push("");
+  if (result.level === "Warning") {
+    lines.push("本番針ではズレや接触が起こる可能性があります。");
+    lines.push("ゆるめの設定でもう一度確認してください。");
+  } else if (result.level === "Caution") {
+    lines.push("本番針では負荷が高くなる可能性があります。");
+    lines.push("実機で確認しながら調整してください。");
+  }
+
+  return lines.join("\n");
+}
+
+// ------------------------------------------------------------
+
 async function runCommands() {
   stopRequested = false;
   isPlaying = true;
@@ -322,9 +499,20 @@ playBtn.addEventListener("click", async () => {
 
   try {
     parsedCommands = parseScore(scoreInputEl.value);
+
+    const safety = analyzeSafety(parsedCommands);
+    const safetyReport = formatSafetyReport(safety);
+
     currentStepIndex = -1;
     updateStepInfo();
-    setMessage("Parsed successfully.");
+    setStatus(safety.level);
+
+    // 再生前にまず安全判定を表示
+    setMessage(safetyReport);
+
+    // 少し見える時間を置いてから再生
+    await sleep(600);
+
     await runCommands();
   } catch (error) {
     setStatus("Error");
