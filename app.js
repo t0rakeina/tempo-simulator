@@ -9,6 +9,9 @@ const manualAngleEl = document.getElementById("manualAngle");
 const lineNumbersEl = document.getElementById("lineNumbers");
 const activeLineHighlightEl = document.getElementById("activeLineHighlight");
 
+const safetyLevelEl = document.getElementById("safetyLevel");
+const safetyDetailEl = document.getElementById("safetyDetail");
+
 const applyManualAngleBtn = document.getElementById("applyManualAngleBtn");
 const setStartBtn = document.getElementById("setStartBtn");
 const sampleBtn = document.getElementById("sampleBtn");
@@ -209,6 +212,32 @@ function showActiveLineHighlight(lineNumber) {
 }
 
 // ------------------------------------------------------------
+// Safety UI
+// ------------------------------------------------------------
+
+function setSafety(level, detail) {
+  safetyLevelEl.textContent = level;
+  safetyDetailEl.textContent = detail;
+
+  safetyLevelEl.classList.remove(
+    "safety-safe",
+    "safety-caution",
+    "safety-warning",
+    "safety-neutral"
+  );
+
+  if (level === "Safe") {
+    safetyLevelEl.classList.add("safety-safe");
+  } else if (level === "Caution") {
+    safetyLevelEl.classList.add("safety-caution");
+  } else if (level === "Warning") {
+    safetyLevelEl.classList.add("safety-warning");
+  } else {
+    safetyLevelEl.classList.add("safety-neutral");
+  }
+}
+
+// ------------------------------------------------------------
 // 安全ガード
 // ------------------------------------------------------------
 
@@ -222,7 +251,6 @@ function analyzeSafety(commands) {
   const cautions = [];
   const warnings = [];
 
-  // 反転ブロック解析
   let blockMoves = [];
   let prevSign = 0;
 
@@ -237,7 +265,6 @@ function analyzeSafety(commands) {
     const minMoveMs = Math.min(...blockMoves.map((m) => m.moveMs));
     const zeroHoldCount = blockMoves.filter((m) => m.holdMs === 0).length;
 
-    // ルール1：小刻み反転
     if (maxAbsDeg <= 30 && minMoveMs <= 120 && reversalCount >= 4) {
       warnings.push(
         `小〜中振れ幅（≤30°）の高速反転が ${reversalCount} 回連続しています`
@@ -248,7 +275,6 @@ function analyzeSafety(commands) {
       );
     }
 
-    // ルール2：中振れ幅の高速反転
     if (maxAbsDeg > 30 && maxAbsDeg <= 60 && minMoveMs <= 100 && reversalCount >= 3) {
       warnings.push(
         `中振れ幅（30〜60°）の高速反転が ${reversalCount} 回連続しています`
@@ -259,7 +285,6 @@ function analyzeSafety(commands) {
       );
     }
 
-    // ルール5：停止なし連続
     if (zeroHoldCount >= 10 && reversalCount >= 4) {
       warnings.push(`停止なし（holdMs=0）の反転が長く続いています`);
     } else if (zeroHoldCount >= 6 && reversalCount >= 3) {
@@ -296,7 +321,6 @@ function analyzeSafety(commands) {
   }
   flushBlock();
 
-  // ルール3：大振れ幅の高速移動
   commands.forEach((cmd) => {
     const absDeg = Math.abs(cmd.moveDeg);
 
@@ -307,11 +331,8 @@ function analyzeSafety(commands) {
     }
   });
 
-  // ルール4：月送り直前の激しい往復
   for (let i = 0; i < commands.length; i++) {
     const cmd = commands[i];
-
-    // 月送りっぽい大きめの移動を仮に20°以上とみなす
     if (Math.abs(cmd.moveDeg) < 20) continue;
 
     const prevSlice = commands.slice(Math.max(0, i - 8), i);
@@ -332,7 +353,6 @@ function analyzeSafety(commands) {
     }
   }
 
-  // 重複を整理
   const uniqueCautions = [...new Set(cautions)];
   const uniqueWarnings = [...new Set(warnings)];
 
@@ -352,7 +372,6 @@ function analyzeSafety(commands) {
 
 function formatSafetyReport(result) {
   const lines = [];
-  lines.push(`Safety Check: ${result.level}`);
 
   if (result.level === "Safe") {
     lines.push("実機でも比較的安定して再生できる可能性が高いです。");
@@ -360,22 +379,22 @@ function formatSafetyReport(result) {
   }
 
   if (result.warnings.length > 0) {
-    lines.push("");
     lines.push("[Warning]");
     result.warnings.forEach((w) => lines.push(`- ${w}`));
   }
 
   if (result.cautions.length > 0) {
-    lines.push("");
+    if (lines.length > 0) lines.push("");
     lines.push("[Caution]");
     result.cautions.forEach((c) => lines.push(`- ${c}`));
   }
 
-  lines.push("");
   if (result.level === "Warning") {
+    lines.push("");
     lines.push("本番針ではズレや接触が起こる可能性があります。");
     lines.push("ゆるめの設定でもう一度確認してください。");
   } else if (result.level === "Caution") {
+    lines.push("");
     lines.push("本番針では負荷が高くなる可能性があります。");
     lines.push("実機で確認しながら調整してください。");
   }
@@ -390,7 +409,6 @@ async function runCommands() {
   isPlaying = true;
   setStatus("Playing");
 
-  // 実機相当：累積角度 → ステップ丸め → 実角度
   let currentTargetDeg = 0;
   let currentStep = 0;
 
@@ -487,8 +505,9 @@ sampleBtn.addEventListener("click", () => {
 { 0, 0, 850 },
 { 30, 50, 200 }`;
   updateLineNumbers();
-  setMessage("Sample loaded.");
   hideActiveLineHighlight();
+  setSafety("Not checked", "Play を押すと safety 判定を表示します。");
+  setMessage("Sample loaded.");
 });
 
 playBtn.addEventListener("click", async () => {
@@ -503,21 +522,19 @@ playBtn.addEventListener("click", async () => {
     const safety = analyzeSafety(parsedCommands);
     const safetyReport = formatSafetyReport(safety);
 
+    setSafety(safety.level, safetyReport);
+
     currentStepIndex = -1;
     updateStepInfo();
     setStatus(safety.level);
 
-    // 再生前にまず安全判定を表示
-    setMessage(safetyReport);
-
-    // 少し見える時間を置いてから再生
-    await sleep(600);
-
+    setMessage("Parsed successfully.");
     await runCommands();
   } catch (error) {
     setStatus("Error");
     setMessage(error.message);
     hideActiveLineHighlight();
+    setSafety("Not checked", "解析に失敗しました。入力形式を確認してください。");
   }
 });
 
@@ -542,8 +559,9 @@ resetBtn.addEventListener("click", () => {
 clearBtn.addEventListener("click", () => {
   scoreInputEl.value = "";
   updateLineNumbers();
-  setMessage("Score cleared.");
   hideActiveLineHighlight();
+  setSafety("Not checked", "Play を押すと safety 判定を表示します。");
+  setMessage("Score cleared.");
 });
 
 scoreInputEl.addEventListener("input", () => {
@@ -551,6 +569,7 @@ scoreInputEl.addEventListener("input", () => {
   hideActiveLineHighlight();
   currentStepIndex = -1;
   updateStepInfo();
+  setSafety("Not checked", "入力が変更されました。再度 Play を押して safety 判定を更新してください。");
 });
 
 scoreInputEl.addEventListener("scroll", () => {
@@ -573,6 +592,7 @@ function initialize() {
   setMessage("Ready.");
   updateLineNumbers();
   hideActiveLineHighlight();
+  setSafety("Not checked", "Play を押すと safety 判定を表示します。");
 }
 
 initialize();
