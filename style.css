@@ -189,7 +189,8 @@ input[type="number"] {
 }
 
 .format-box,
-.error-box {
+.error-box,
+.safety-box {
   background: #f7f7f7;
   border-radius: 12px;
   padding: 16px;
@@ -200,14 +201,58 @@ input[type="number"] {
   margin-bottom: 16px;
 }
 
+.safety-box {
+  margin-top: 16px;
+}
+
 .error-box {
   margin-top: 16px;
 }
 
 .error-title,
+.safety-title,
 .format-box h3 {
   margin: 0 0 8px;
   font-size: 16px;
+  font-weight: 700;
+}
+
+.safety-level {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.safety-neutral {
+  background: #ddd;
+  color: #333;
+}
+
+.safety-safe {
+  background: #dff3e4;
+  color: #1f6b33;
+}
+
+.safety-caution {
+  background: #fff1d6;
+  color: #8a5a00;
+}
+
+.safety-warning {
+  background: #fde2e2;
+  color: #9b1c1c;
+}
+
+.safety-detail {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .editor-wrap {
